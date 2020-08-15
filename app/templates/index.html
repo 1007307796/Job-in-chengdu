@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+	<style type="text/css">
+	body, html{width: 100%;height: 100%;margin:0;font-family:"微软雅黑";}
+	#allmap {height: 100%;width:100%;overflow: hidden;}
+	#title {width: 10%;height: 20px;float: left;position: absolute;z-index: 10;}
+	dl,dt,dd,ul,li{
+		margin:0;
+		padding:0;
+		list-style:none;
+	}
+	dt{
+		font-size:14px;
+		font-family:"微软雅黑";
+		font-weight:bold;
+		border-bottom:1px dotted #000;
+		padding:5px 0 5px 5px;
+		margin:5px 0;
+	}
+	dd{
+		padding:5px 0 0 5px;
+	}
+	li{
+		line-height:26px;
+	}
+	</style>
+    <link rel="stylesheet" href="https://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.css" />
+	<script type="text/javascript" src="https://api.map.baidu.com/api?v=2.0&ak=<Your Key>"></script>
+    <script type="text/javascript" src="https://api.map.baidu.com/library/AreaRestriction/1.2/src/AreaRestriction_min.js"></script>
+	<script type="text/javascript" src="https://api.map.baidu.com/library/SearchInfoWindow/1.5/src/SearchInfoWindow_min.js"></script>
+	<title>Job in Chengdu</title>
+</head>
+<body>
+	{% if cities.cd %}
+	<div id='title'><b>{{ cities.cd }}</b><br/>
+		<input type="button" value="搜索" onclick="bdGEO()" />
+	</div>
+	{% endif %}
+	<div id="allmap"></div>
+
+</body>
+<script type="text/javascript">
+	// 获取后端数据
+	var data = {{ infos|safe }};
+	var city = '{{ cities.cd|safe }}';
+	// 百度地图API功能
+    var map = new BMap.Map("allmap",{minZoom:10});
+	map.centerAndZoom('成都', 12);
+    map.enableScrollWheelZoom(true);
+    var b = new BMap.Bounds(new BMap.Point(103.044796,30.018475),new BMap.Point(105.004108,31.267223));
+	try {	
+		BMapLib.AreaRestriction.setBounds(map, b);
+	} catch (e) {
+		alert(e);
+	}
+	var index = 0;
+	var myGeo = new BMap.Geocoder();
+	var company = [];
+	function bdGEO(){
+		if (index < data.length) {
+			var addr = data[index][0];
+			var jobName = data[index][1];
+			var detailUrl = data[index][2];
+			var dataFrom = data[index][3];
+			var companyName = data[index][4];
+			geocodeSearch(addr,jobName,detailUrl,dataFrom,companyName,company);
+			index++;
+		}
+	}
+	function geocodeSearch(addr,jobName,detailUrl,dataFrom,companyName,company){
+		if(index < data.length){
+			setTimeout(window.bdGEO,200);
+		} 
+		myGeo.getPoint(addr, function(point){
+			if (point) {
+				var address = new BMap.Point(point.lng, point.lat);
+				for(var i=0;i<company.length;i++){
+					if(companyName == company[i]){
+						company.pop(companyName)
+						var offSet = Math.random()*0.0002
+						address = new BMap.Point(point.lng+offSet, point.lat+offSet);
+						console.log('1')
+						break;
+					}
+				}
+				company.push(companyName)	
+				addMarker(address,jobName,detailUrl,dataFrom,companyName,addr);
+			}
+		}, city);
+	}
+	// 编写自定义函数,创建标注
+	function addMarker(point,jobName,detailUrl,dataFrom,companyName,addr){
+		var content = '<div style="line-height:20px;">职位：'+
+			jobName+'<br/>详情：<a href='+detailUrl+'>'+detailUrl+
+			'</a><br/>地址：'+addr+'<br/>来源：'+dataFrom+'</div>';
+		var opts = {	
+			title  : '<b>'+companyName+'</b>',      //标题
+			width  : 290,             //宽度
+			height : 80,              //高度
+			panel  : "panel",         //检索结果面板
+			enableAutoPan : true,     //自动平移
+			searchTypes   :[
+				BMAPLIB_TAB_SEARCH,   //周边检索
+				BMAPLIB_TAB_TO_HERE,  //到这里去
+				BMAPLIB_TAB_FROM_HERE //从这里出发
+			]
+		}
+		var marker = new BMap.Marker(point);
+		addClickHandler(content,marker,opts);
+		marker.setTitle(companyName)
+		map.addOverlay(marker);
+		
+	}
+	function addClickHandler(content,marker,opts){
+		var searchInfoWindow = null;
+		marker.addEventListener("click",function(e){
+			searchInfoWindow = new BMapLib.SearchInfoWindow(map,content,opts);
+			searchInfoWindow.open(marker);
+		});
+	}
+</script>
+</html>
